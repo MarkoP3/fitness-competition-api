@@ -66,7 +66,48 @@ app.get("/api/competitors/scoreboard", (req, res) => {
     res.end();
   });
 });
-
+app.post("/api/competitors", (req, res) => {
+  const { firstName, lastName, gender, weight, age } = req.body;
+  //Da li zene ispod 18 idu u zene ili u ispod 18
+  let category = "";
+  if (age < 18) category = "U18";
+  else if (gender == "z") category = "Women";
+  else if (weight < 70) category = "Featherweight";
+  else if (weight >= 70 && weight < 90) category = "Welterweight";
+  else category = "Heavyweight";
+  let querystring = `INSERT INTO competitor VALUES(null,'${firstName}','${lastName}','${gender}',${weight},${age},(SELECT id from category where name='${category}'))`;
+  connection.query(querystring, (err, insertedResult) => {
+    if (err) console.error(err);
+    connection.query(
+      `SELECT discipline.id as id,discipline_type.name as type,discipline.name as name FROM discipline_category,discipline,discipline_type where categoryID=(SELECT id from category where name='${category}') and discipline.id=discipline_category.disiplineID and discipline_typeID=discipline_type.id;`,
+      (err, result) => {
+        if (err) console.error(err);
+        res.write(
+          JSON.stringify({
+            competitor: insertedResult.insertId,
+            categories: result,
+          })
+        );
+        res.end();
+      }
+    );
+  });
+});
+app.post("/api/competes", (req, res) => {
+  const { competitor, disciplines } = req.body;
+  let values = [];
+  disciplines.forEach((discipline) => {
+    values.push([null, discipline, competitor, 0, 0]);
+  });
+  console.log(`values`, values);
+  connection.query("INSERT INTO competes VALUES ?", [values], (err, result) => {
+    if (err) console.log(`err`, err);
+    else {
+      console.log(`result`, result);
+      res.end();
+    }
+  });
+});
 /*
 
 na update rekalkulisi TOTAL
