@@ -48,7 +48,7 @@ app.get("/api/disciplines", (req, res) => {
 });
 
 app.get("/api/competitors", (req, res) => {
-  let querystring = `SELECT category.name as category, competes.id as compID,discipline.name as discipline,discipline_type.name as type, competitor.id as id,concat(competitor.first_name,' ',competitor.last_name) as name,concat(competes.quantity,' ',discipline_type.unit) as points, competes.quantity as quantity from competitor,competes,discipline,discipline_type,category where category.id=competitor.categoryID and discipline_type.id=discipline.discipline_typeID AND competes.disciplineID=discipline.id and competes.competitorID=competitor.id ${
+  let querystring = `SELECT competes.points as place,discipline.first_place as place1,discipline.second_place as place2,discipline.third_place as place3,category.name as category, competes.id as compID,discipline.name as discipline,discipline_type.name as type, competitor.id as id,concat(competitor.first_name,' ',competitor.last_name) as name,concat(competes.quantity,' ',discipline_type.unit) as points, competes.quantity as quantity from competitor,competes,discipline,discipline_type,category where category.id=competitor.categoryID and discipline_type.id=discipline.discipline_typeID AND competes.disciplineID=discipline.id and competes.competitorID=competitor.id ${
     req.query.discipline != undefined
       ? `AND discipline.id=${req.query.discipline}`
       : ``
@@ -136,6 +136,26 @@ app.post("/api/results", (req, res) => {
       if (err) console.error(err);
       console.log(`result`, result);
       io.emit("refresh", competitor);
+      res.end();
+    }
+  );
+});
+app.post("/api/winner", (req, res) => {
+  const { competesID, place } = req.body;
+  let placeName =
+    place == 1 ? "first_place" : place == 2 ? "second_place" : "third_place";
+  console.log(`placeName`, placeName);
+  console.log(competesID);
+  let querystring = `SET @points = (SELECT ${placeName} from  discipline,competes where discipline.id=competes.disciplineID and competes.id=?);
+  UPDATE competes set points=@points where competes.id = ?;
+  select competitorID from competes where id=?`;
+  connection.query(
+    querystring,
+    [competesID, competesID, competesID],
+    (err, result) => {
+      if (err) console.error(err);
+      console.log(`result`, result[2][0].competitorID);
+      io.emit("refresh", result[2][0].competitorID);
       res.end();
     }
   );
