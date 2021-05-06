@@ -12,9 +12,7 @@ const app = express();
 const server = require("http").createServer(app);
 const io = require("socket.io")(server, { cors: { origin: "*" } });
 
-io.on("connection", (socket) => {
-  console.log("Neko se konektovao ");
-});
+io.on("connection", (socket) => {});
 
 server.listen(process.env.PORT || 8080);
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -27,8 +25,15 @@ app.use(function (req, res, next) {
   );
   next();
 });
+app.use(function (err, req, res, next) {
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(500);
+  res.render("error", { error: err });
+});
 app.get("/api/categories", (req, res) => {
-  connection.query("SELECT * FROM category", (err, result) => {
+  connection.query("SELECT * FROM category ORDER BY id", (err, result) => {
     if (err) console.error(err);
     res.write(JSON.stringify(result));
     res.end();
@@ -39,7 +44,7 @@ app.get("/api/disciplines", (req, res) => {
   let querystring =
     "SELECT discipline.id,discipline.name as discipline,discipline.first_place,discipline.second_place,discipline.third_place,discipline_type.name,discipline_type.unit from discipline,discipline_type where discipline_typeID=discipline_type.id";
   if (req.query.category != undefined)
-    querystring = `SELECT discipline.id,discipline.name as discipline,discipline.first_place,discipline.second_place,discipline.third_place,discipline_type.name,discipline_type.unit from discipline,discipline_type,discipline_category,category where discipline_typeID=discipline_type.id and discipline_category.categoryID=category.id and discipline_category.disiplineID=discipline.id and category.id=${req.query.category}`;
+    querystring = `SELECT discipline.id,discipline.name as discipline,discipline.first_place,discipline.second_place,discipline.third_place,discipline_type.name,discipline_type.unit from discipline,discipline_type,discipline_category,category where discipline_typeID=discipline_type.id and discipline_category.categoryID=category.id and discipline_category.disiplineID=discipline.id and category.id=${req.query.category} ORDER BY discipline.id`;
   connection.query(querystring, (err, result) => {
     if (err) console.error(err);
     res.write(JSON.stringify(result));
@@ -61,7 +66,7 @@ app.get("/api/competitors", (req, res) => {
       ? ` AND concat(competitor.first_name,' ',competitor.last_name) LIKE '%${req.query.filter}%'`
       : ``
   }`;
-  querystring += " ORDER BY competes.quantity DESC";
+  querystring += ` ORDER BY competes.quantity DESC`;
   connection.query(querystring, (err, result) => {
     if (err) console.error(err);
     res.write(JSON.stringify(result));
@@ -111,7 +116,6 @@ app.post("/api/competitors", (req, res) => {
 });
 app.post("/api/competes", (req, res) => {
   const { competitor, disciplines } = req.body;
-  console.log(`discplines`, competitor);
   let values = [];
   disciplines.forEach((discipline) => {
     values.push([null, discipline, competitor, 0, 0]);
@@ -119,7 +123,6 @@ app.post("/api/competes", (req, res) => {
   connection.query("INSERT INTO competes VALUES ?", [values], (err, result) => {
     if (err) console.error(err);
     else {
-      console.log(`result`, result);
       io.emit("refresh", competitor);
       res.end();
     }
@@ -134,7 +137,6 @@ app.post("/api/results", (req, res) => {
     [parseFloat(result), competesID, competitor, competitor],
     (err, result) => {
       if (err) console.error(err);
-      console.log(`result`, result);
       io.emit("refresh", competitor);
       res.end();
     }
@@ -144,8 +146,6 @@ app.post("/api/winner", (req, res) => {
   const { competesID, place } = req.body;
   let placeName =
     place == 1 ? "first_place" : place == 2 ? "second_place" : "third_place";
-  console.log(`placeName`, placeName);
-  console.log(competesID);
   let querystring = `SET @points = (SELECT ${placeName} from  discipline,competes where discipline.id=competes.disciplineID and competes.id=?);
   UPDATE competes set points=@points where competes.id = ?;
   select competitorID from competes where id=?`;
@@ -154,7 +154,6 @@ app.post("/api/winner", (req, res) => {
     [competesID, competesID, competesID],
     (err, result) => {
       if (err) console.error(err);
-      console.log(`result`, result[2][0].competitorID);
       io.emit("refresh", result[2][0].competitorID);
       res.end();
     }
