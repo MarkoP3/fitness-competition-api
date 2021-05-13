@@ -74,10 +74,10 @@ app.get("/api/competitors", (req, res) => {
         : ``
     } ${
       req.query.filter != undefined
-        ? ` AND concat(competitor.first_name,' ',competitor.last_name) LIKE '%${req.query.filter}%'`
+        ? ` AND (concat(competitor.first_name,' ',competitor.last_name) LIKE '%${req.query.filter}%' OR discipline_type.name LIKE '%${req.query.filter}%' OR category.name LIKE '%${req.query.filter}%' OR discipline.name LIKE '%${req.query.filter}%')`
         : ``
     }`;
-    querystring += ` ORDER BY competes.quantity DESC,category.name`;
+    querystring += ` ORDER BY category.name,discipline.name,discipline_type.name,competes.quantity DESC`;
     connection.query(querystring, (err, result) => {
       if (err) console.error(err);
       res.write(JSON.stringify(result));
