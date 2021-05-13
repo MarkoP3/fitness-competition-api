@@ -213,3 +213,15 @@ app.post("/api/winner", (req, res) => {
     res.end();
   }
 });
+app.delete("api/competitors", (req, res) => {
+  const { competitor } = req.body;
+  let querystring;
+  if (competitor != undefined)
+    querystring =
+      "DELETE FROM competitor where id IN (SELECT user from  (select competitor.id as user,competes.id as compID from competitor LEFT JOIN competes on competitor.id=competes.competitorID) as joined where joined.compID is null )";
+  else querystring = `DELETE FROM competitor where id=%${competitor}%`;
+  connection.query(querystring, (err, result) => {
+    console.log(`result`, result);
+    res.end();
+  });
+});
