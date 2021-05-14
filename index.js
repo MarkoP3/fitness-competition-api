@@ -109,7 +109,7 @@ app.post("/api/competitors", (req, res) => {
     if (gender == "z") category = "Women";
     else if (age < 18) category = "U18";
     else if (weight < 70) category = "Featherweight";
-    else if (weight >= 70 && weight < 90) category = "Welterweight";
+    else if (weight >= 70 && weight < 82) category = "Welterweight";
     else category = "Heavyweight";
     let querystring = `INSERT INTO competitor VALUES(null,?,?,?,?,?,(SELECT id from category where name=?))`;
     connection.query(
