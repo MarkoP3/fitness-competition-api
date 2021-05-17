@@ -106,11 +106,11 @@ app.post("/api/competitors", (req, res) => {
   try {
     const { firstName, lastName, gender, weight, age } = req.body;
     let category = "";
-    if (gender == "z") category = "Women";
-    else if (age < 18) category = "U18";
-    else if (weight < 70) category = "Featherweight";
-    else if (weight >= 70 && weight < 82) category = "Welterweight";
-    else category = "Heavyweight";
+    if (gender == "ж") category = "Жене";
+    else if (age < 18) category = "И18";
+    else if (weight <+ 70) category = "Лака кат.";
+    else if (weight > 70 && weight <+ 82) category = "Средња кат.";
+    else category = "Тешка кат.";
     let querystring = `INSERT INTO competitor VALUES(null,?,?,?,?,?,(SELECT id from category where name=?))`;
     connection.query(
       querystring,
