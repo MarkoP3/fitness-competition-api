@@ -6,6 +6,7 @@ const connection = mysql.createPool({
   user: "vmx3135c2dfjphee",
   password: "uu0zrrrhsoz5gdek",
   database: "e2ydz9c6y1t7ovfs",
+  connectionLimit:10,
   multipleStatements: true,
 });
 const app = express();
