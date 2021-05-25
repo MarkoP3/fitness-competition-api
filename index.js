@@ -108,7 +108,7 @@ app.post("/api/competitors", (req, res) => {
     const { firstName, lastName, gender, weight, age } = req.body;
     let category = "";
     if (gender == "ж") category = "Жене";
-    else if (age < 18) category = "И18";
+    else if (age <= 18) category = "И18";
     else if (weight <= 70) category = "Лака кат.";
     else if (weight > 70 && weight <= 82) category = "Средња кат.";
     else category = "Тешка кат.";
