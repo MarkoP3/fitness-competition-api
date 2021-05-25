@@ -3,7 +3,6 @@ const mysql = require("mysql");
 const bodyParser = require("body-parser");
 const pool = mysql.createPool({
    host: "eu-cdbr-west-01.cleardb.com",
-  connectionLimit: 10,
    user: "bc3bee78fedd1c",
    password: "99b2122c",
   database: "heroku_221d49f6c99d98e",
