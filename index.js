@@ -2,10 +2,10 @@ const express = require("express");
 const mysql = require("mysql");
 const bodyParser = require("body-parser");
 const connection = mysql.createPool({
-  host: "eu-cdbr-west-01.cleardb.com",
-  user: "bc3bee78fedd1c",
-  password: "99b2122c",
-  database: "heroku_221d49f6c99d98e",
+  host: "esilxl0nthgloe1y.chr7pe7iynqr.eu-west-1.rds.amazonaws.com",
+  user: "vmx3135c2dfjphee",
+  password: "uu0zrrrhsoz5gdek",
+  database: "e2ydz9c6y1t7ovfs",
   multipleStatements: true,
 });
 const app = express();
