@@ -7,14 +7,21 @@ const connection = mysql.createPool({
   password: "99b2122c",
   database: "heroku_221d49f6c99d98e",
   multipleStatements: true,
-});
+}); /*
+const connection = mysql.createPool({
+  host: "127.0.0.1",
+  user: "root",
+  password: "",
+  database: "fitness_competition",
+  multipleStatements: true,
+});*/
 const app = express();
 const server = require("http").createServer(app);
 const io = require("socket.io")(server, { cors: { origin: "*" } });
 
 io.on("connection", (socket) => {});
 
-server.listen(process.env.PORT || 8080);
+server.listen(process.env.PORT || 8081);
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(function (req, res, next) {
@@ -65,7 +72,7 @@ app.get("/api/disciplines", (req, res) => {
 
 app.get("/api/competitors", (req, res) => {
   try {
-    let querystring = `SELECT competes.points as place,discipline.first_place as place1,discipline.second_place as place2,discipline.third_place as place3,category.name as category, competes.id as compID,discipline.name as discipline,discipline_type.name as type, competitor.id as id,concat(competitor.first_name,' ',competitor.last_name) as name,concat(competes.quantity,' ',discipline_type.unit) as points, competes.quantity as quantity from competitor,competes,discipline,discipline_type,category where category.id=competitor.categoryID and discipline_type.id=discipline.discipline_typeID AND competes.disciplineID=discipline.id and competes.competitorID=competitor.id ${
+    let querystring = `SELECT competitor.first_name,competitor.last_name,if(competitor.gender='м','Мушки','Женски') as gender,competitor.imageHref,competitor.age,competitor.weight,competes.points as place,discipline.first_place as place1,discipline.second_place as place2,discipline.third_place as place3,category.name as category, competes.id as compID,discipline.name as discipline,discipline_type.name as type, competitor.id as id,concat(competitor.first_name,' ',competitor.last_name) as name,concat(competes.quantity,' ',discipline_type.unit) as points, competes.quantity as quantity from competitor,competes,discipline,discipline_type,category where category.id=competitor.categoryID and discipline_type.id=discipline.discipline_typeID AND competes.disciplineID=discipline.id and competes.competitorID=competitor.id ${
       req.query.discipline != undefined
         ? `AND discipline.id='${req.query.discipline}'`
         : ``
@@ -92,10 +99,10 @@ app.get("/api/competitors", (req, res) => {
 
 app.get("/api/competitors/scoreboard", (req, res) => {
   try {
-    let querystring = `SELECT competitor.id as id,concat(competitor.first_name,' ',competitor.last_name) as name,SUM(competes.points) as points   from competitor,competes,discipline where competes.disciplineID=discipline.id and competes.competitorID=competitor.id and competitor.categoryID='${req.query.category}' GROUP BY competitor.id,concat(competitor.first_name,' ',competitor.last_name) ORDER BY points DESC `;
+    let querystring = `SET @maxPoints=(SELECT MAX(d.sumOfPoints) FROM (SELECT SUM(points) as sumOfPoints FROM competes GROUP by competitorID) as d);SELECT competitor.id as id,if(competitor.gender='м','Мушки','Женски') as gender,competitor.first_name,competitor.last_name,concat(competitor.first_name,' ',competitor.last_name) as name,SUM(competes.points) as points,@maxPoints as maxPoints, competitor.imageHref,competitor.age,competitor.weight,category.name as category   from competitor,competes,discipline,category where competitor.categoryID=category.ID and competes.disciplineID=discipline.id and competes.competitorID=competitor.id and competitor.categoryID='${req.query.category}' GROUP BY competitor.id,concat(competitor.first_name,' ',competitor.last_name) ORDER BY points DESC;`;
     connection.query(querystring, (err, result) => {
       if (err) console.error(err);
-      res.write(JSON.stringify(result));
+      res.write(JSON.stringify(result[1]));
       res.end();
     });
   } catch (error) {
@@ -105,17 +112,32 @@ app.get("/api/competitors/scoreboard", (req, res) => {
 });
 app.post("/api/competitors", (req, res) => {
   try {
-    const { firstName, lastName, gender, weight, age } = req.body;
+    const { firstName, lastName, gender, weight, age, isSpecial, imageHref } =
+      req.body;
     let category = "";
-    if (gender == "ж") category = "Жене";
-    else if (age <= 18) category = "И18";
-    else if (weight <= 70) category = "Лака кат.";
-    else if (weight > 70 && weight <= 82) category = "Средња кат.";
-    else category = "Тешка кат.";
-    let querystring = `INSERT INTO competitor VALUES(null,?,?,?,?,?,(SELECT id from category where name=?))`;
+    console.log("isSpecial", isSpecial);
+    if (isSpecial) category = "Посебни";
+    else if (gender == "ж") category = "Жене";
+    else if (age <= 18) {
+      if (weight <= 65) category = "И18 - Лака";
+      else category = "И18 - Тешка";
+    } else {
+      if (weight <= 75) category = "Сениори - Лака";
+      else category = "Сениори - Тешка";
+    }
+    let querystring = `INSERT INTO competitor VALUES(null,?,?,?,?,?,(SELECT id from category where name=?),?,?)`;
     connection.query(
       querystring,
-      [firstName, lastName, gender, weight, age, category],
+      [
+        firstName,
+        lastName,
+        gender,
+        weight,
+        age,
+        category,
+        isSpecial,
+        imageHref,
+      ],
       (err, insertedResult) => {
         if (err) console.error(err);
         connection.query(
@@ -167,10 +189,12 @@ app.post("/api/competes", (req, res) => {
 app.post("/api/results", (req, res) => {
   try {
     const { competesID, result, competitor } = req.body;
-    let querystring = `UPDATE competes set quantity=? where id=?;SET @sum = (SELECT SUM(competes.quantity) from competitor,competes,discipline,discipline_type where competitor.id=competes.competitorID and competes.disciplineID=discipline.id and discipline.discipline_typeID=discipline_type.id AND discipline_type.name='ОРМ' and competitor.id=?);SELECT @sum;UPDATE competes SET competes.quantity=@sum where competitorID=? AND disciplineID=(SELECT id from discipline where name='ТОТАЛ');`;
+    //let querystring = `UPDATE competes set quantity=? where id=?;SET @sum = (SELECT SUM(competes.quantity) from competitor,competes,discipline,discipline_type where competitor.id=competes.competitorID and competes.disciplineID=discipline.id and discipline.discipline_typeID=discipline_type.id AND discipline_type.name='ОРМ' and competitor.id=?);SELECT @sum;UPDATE competes SET competes.quantity=@sum where competitorID=? AND disciplineID=(SELECT id from discipline where name='ТОТАЛ');`;
+    let querystring = `UPDATE competes set quantity=? where id=?`;
     connection.query(
       querystring,
-      [parseFloat(result), competesID, competitor, competitor],
+      //[parseFloat(result), competesID, competitor, competitor],
+      [parseFloat(result), competesID],
       (err, result) => {
         if (err) console.error(err);
         io.emit("refresh", competitor);
@@ -224,7 +248,7 @@ app.post("/api/deleteCompetitors", (req, res) => {
   });
 });
 app.get("/api/allCompetitors", (req, res) => {
-  let querystring = `select competitor.id,competitor.first_name,competitor.last_name,gender,weight,axe,category.name from competitor,category where category.id=competitor.categoryID`;
+  let querystring = `select competitor.id,competitor.imageHref,competitor.first_name,competitor.last_name,gender,weight,age,category.name from competitor,category where category.id=competitor.categoryID`;
   connection.query(querystring, (err, result) => {
     if (err) console.error(err);
     res.write(JSON.stringify(result));
